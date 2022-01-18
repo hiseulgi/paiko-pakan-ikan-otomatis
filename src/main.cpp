@@ -56,6 +56,17 @@ void setup() {
     } else {
         Serial.println("Failed connect to Telegram");
     }
+
+    // Mengambil waktu pakan otomatis (alarm) dari firebase
+    Firebase.getString(fbdo, "waktuPakan/waktu1");
+    alarm1 = fbdo.to<const char *>();
+    hr1 = alarm1.substring(0, 2).toInt();
+    min1 = alarm1.substring(3, 5).toInt();
+
+    Firebase.getString(fbdo, "waktuPakan/waktu2");
+    alarm2 = fbdo.to<const char *>();
+    hr2 = alarm2.substring(0, 2).toInt();
+    min2 = alarm2.substring(3, 5).toInt();
 }
 
 void loop() {
@@ -68,14 +79,11 @@ void loop() {
     String hari = weekDays[timeClient.getDay()];
     String tanggal = timeClient.getFormattedDate();
     String waktu = timeClient.getFormattedTime();
+    int hrNow = waktu.substring(0, 2).toInt();
+    int minNow = waktu.substring(3, 5).toInt();
 
     // Telegram Bot
     handleNewMessages(hari, tanggal, waktu);
-
-    // if (millis() > lastTimeBotRan + bot_delay) {
-    //     handleNewMessages(hari, tanggal, waktu);
-    //     lastTimeBotRan = millis();
-    // }
 
     // Handle Input dari button
     if (!btnState) {
@@ -83,6 +91,9 @@ void loop() {
         pushHistory(hari, tanggal, waktu);
         delay(500);
     }
+
+    // Handle pemberi pakan ikan otomatis (alarm)
+    handleAlarm(hrNow, minNow, hari, tanggal, waktu);
 
     delay(10);
 }
@@ -142,10 +153,18 @@ void handleNewMessages(String hari, String tanggal, String waktu) {
             String time = result.to<String>();
             Serial.println(time);
 
+            Firebase.getString(fbdo, "waktuPakan/waktu1");
+            String alarm1 = fbdo.to<const char *>();
+            Firebase.getString(fbdo, "waktuPakan/waktu2");
+            String alarm2 = fbdo.to<const char *>();
+
             String txt = "Paiko terakhir kali memberikan pakan ikan pada : \n\n";
             txt += "Hari          : " + day;
             txt += "\nTanggal   : " + date;
             txt += "\nWaktu      : " + time;
+            txt += "\n\nWaktu pemberian pakan secara otomatis pada :\n";
+            txt += "- Pukul " + alarm1 + " WIB";
+            txt += "\n- Pukul " + alarm2 + " WIB";
             myBot.sendMessage(chat_id, txt);
             return;
         }
@@ -161,10 +180,77 @@ void handleNewMessages(String hari, String tanggal, String waktu) {
 
         // set waktu untuk memberi pakan ikan secara otomatis
         if (msg.text.equalsIgnoreCase("/settime")) {
-            myBot.sendMessage(chat_id, "Sabar ya kak! Fitur ini sedang dibangun hehe.");
+            String txt = "Atur waktu penjadwalan otomatis.\n";
+            txt += "Silahkan pilih waktu yang ingin diubah(1/2)\n";
+            txt += "/1 - waktu pertama\n";
+            txt += "/2 - waktu kedua";
+            myBot.sendMessage(chat_id, txt);
+            botState = 1;
+            setTimeState = 0;
             return;
         }
 
+        // settime pertama
+        if (msg.text.equalsIgnoreCase("/1") && botState) {
+            setTimeState = 1;
+            String txt = "1. Waktu pertama\n";
+            txt += "Silahkan masukkan waktu dengan format hh:mm (ex : 19:00)";
+            myBot.sendMessage(chat_id, txt);
+            return;
+        }
+
+        if (botState && (setTimeState == 1)) {
+            String tempTime = msg.text.substring(0, 5);
+            if (!validateTime(tempTime)) {
+                myBot.sendMessage(chat_id, "Format yang kakak masukkan salah!");
+                return;
+            }
+
+            Firebase.setString(fbdo, "waktuPakan/waktu1", tempTime);
+            botState = 0;
+            setTimeState = 0;
+
+            alarm1 = tempTime;
+            hr1 = tempTime.substring(0, 2).toInt();
+            min1 = tempTime.substring(3, 5).toInt();
+            String txt = "Waktu " + tempTime + " telah diset sebagai waktu pertama.";
+            myBot.sendMessage(chat_id, txt);
+            return;
+        }
+        // =====================
+
+        // settime kedua
+        if (msg.text.equalsIgnoreCase("/2") && botState) {
+            setTimeState = 2;
+            String txt = "2. Waktu kedua\n";
+            txt += "Silahkan masukkan waktu dengan format hh:mm (ex : 19:00)";
+            myBot.sendMessage(chat_id, txt);
+            return;
+        }
+
+        if (botState && (setTimeState == 2)) {
+            String tempTime = msg.text.substring(0, 5);
+            if (!validateTime(tempTime)) {
+                myBot.sendMessage(chat_id, "Format yang kakak masukkan salah! 😊");
+                return;
+            }
+
+            Firebase.setString(fbdo, "waktuPakan/waktu2", tempTime);
+            botState = 0;
+            setTimeState = 0;
+
+            alarm2 = tempTime;
+            hr2 = tempTime.substring(0, 2).toInt();
+            min2 = tempTime.substring(3, 5).toInt();
+            String txt = "Waktu " + tempTime + " telah diset sebagai waktu kedua.";
+            myBot.sendMessage(chat_id, txt);
+            return;
+        }
+        // =====================
+
+        // default argument
+        botState = 0;
+        setTimeState = 0;
         myBot.sendMessage(chat_id, "Maaf, Paiko tidak tahu perintah ini. 🥺");
     }
 }
@@ -187,4 +273,54 @@ void feedFish() {
     myservo.write(45);
     delay(1000);
     myservo.write(90);
+}
+
+// fungsi untuk validasi waktu
+bool validateTime(String waktu) {
+    // validasi panjang string
+    if (waktu.length() != 5) {
+        return 0;
+    }
+
+    // validasi titik dua (:)
+    if (waktu.substring(2, 3) != ":") {
+        return 0;
+    }
+
+    // validasi jam dan menit
+    int hr = waktu.substring(0, 2).toInt();
+    int min = waktu.substring(3, 5).toInt();
+
+    if (hr >= 0 && hr < 24) {
+        if (min >= 0 && min < 60) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+// Fungsi untuk handle pemberi pakan ikan otomatis jika sesuai waktu pada firebase (alarm)
+void handleAlarm(int hour, int minute, String hari, String tanggal, String waktu) {
+    if (alarmState) {
+        // cek apakah waktu skrng sama dengan waktu pada firebase
+        if (hour == hr1 && minute == min1) {
+            feedFish();
+            pushHistory(hari, tanggal, waktu);
+            delay(500);
+            alarmState = 0;
+        } else if (hour == hr2 && minute == min2) {
+            feedFish();
+            pushHistory(hari, tanggal, waktu);
+            delay(500);
+            alarmState = 0;
+        }
+    }
+
+    // membuat var alarmState = true dengan menunggu 1 menit dr waktu alarm
+    // ------> agar alarm berikutnya dapat menyala
+    if (hour == hr1 && minute == min1 + 1 ||
+        hour == hr2 && minute == min2 + 1) {
+        alarmState = true;
+    }
 }

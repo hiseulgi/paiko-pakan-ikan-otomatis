@@ -50,11 +50,16 @@ Servo myservo;
 TBMessage msg;
 TBUser user;
 String weekDays[7]={"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"};
-bool btnState;
+bool btnState, botState, alarmState = 1;
+int setTimeState;
 int lastTimeBotRan;
 const int bot_delay = 1000;
+String alarm1, alarm2;
+int hr1, hr2, min1, min2;
 
 void handleNewMessages(String hari, String tanggal, String waktu);
 void pushHistory(String hari, String tanggal, String waktu);
 void feedFish();
+bool validateTime(String waktu);
+void handleAlarm(int hour, int minute, String hari, String tanggal, String waktu);
 #endif
