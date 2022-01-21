@@ -8,8 +8,19 @@ void setup() {
     myservo.write(90);
     pinMode(btnPin, INPUT);
     lcd.begin();
+    lcd.clear();
+    lcd.setCursor(3, 0);
+    lcd.print("PAIKO v1");
+    lcd.setCursor(0, 1);
+    lcd.print("................");
 
     // KONEKSI WIFI
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Menyambung");
+    lcd.setCursor(0, 1);
+    lcd.print("ke WiFi...");
+
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     Serial.print("Connecting to Wi-Fi");
     while (WiFi.status() != WL_CONNECTED) {
@@ -20,6 +31,14 @@ void setup() {
     Serial.print("Connected with IP: ");
     Serial.println(WiFi.localIP());
     Serial.println();
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Terhubung pada");
+    lcd.setCursor(0, 1);
+    lcd.print(WiFi.localIP());
+    delay(500);
+    // =============================
 
     Serial.printf("Firebase Client v%s\n\n", FIREBASE_CLIENT_VERSION);
 
@@ -51,13 +70,22 @@ void setup() {
     myBot.wifiConnect(WIFI_SSID, WIFI_PASSWORD);
     myBot.setTelegramToken(TOKEN);
 
+    lcd.clear();
     if (myBot.testConnection()) {
         Serial.println("Connected to Telegram");
+        lcd.setCursor(0, 0);
+        lcd.print("Terhubung ke");
+        lcd.setCursor(0, 1);
+        lcd.print("Telegram");
     } else {
         Serial.println("Failed connect to Telegram");
+        lcd.setCursor(0, 0);
+        lcd.print("Gagal terhubung");
+        lcd.setCursor(0, 1);
+        lcd.print("ke Telegram");
     }
 
-    // Mengambil waktu pakan otomatis (alarm) dari firebase
+    // Mengambil waktu pakan otomatis (alarm) dari firebase dan waktu terakhir
     Firebase.getString(fbdo, "waktuPakan/waktu1");
     alarm1 = fbdo.to<const char *>();
     hr1 = alarm1.substring(0, 2).toInt();
@@ -67,6 +95,10 @@ void setup() {
     alarm2 = fbdo.to<const char *>();
     hr2 = alarm2.substring(0, 2).toInt();
     min2 = alarm2.substring(3, 5).toInt();
+
+    Firebase.getString(fbdo, "lastPush/waktu");
+    lastPushTime = fbdo.to<const char *>();
+    lastPushTime = lastPushTime.substring(0, 5);
 }
 
 void loop() {
@@ -81,6 +113,25 @@ void loop() {
     String waktu = timeClient.getFormattedTime();
     int hrNow = waktu.substring(0, 2).toInt();
     int minNow = waktu.substring(3, 5).toInt();
+
+    // LCD Print
+    // Print waktu sekarang (BARIS ATAS)
+    String hariPrint = hari + ",";
+    String waktuPrint = waktu.substring(0, 5);
+
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print(hariPrint);
+    lcd.setCursor(11, 0);
+    lcd.print(waktuPrint);
+
+    // Print waktu terakhir (BARIS BAWAH)
+    lcd.clear();
+    lcd.setCursor(0, 1);
+    lcd.print("Terakhir,");
+    lcd.setCursor(11, 1);
+    lcd.print(lastPushTime);
+    // =============================
 
     // Telegram Bot
     handleNewMessages(hari, tanggal, waktu);
@@ -101,6 +152,11 @@ void loop() {
 // Fungsi untuk menghandle pesan yg masuk pada telegram
 void handleNewMessages(String hari, String tanggal, String waktu) {
     if (myBot.getNewMessage(msg)) {
+        // LCD PRINT ketika ada pesan masuk
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Ada pesan masuk!");
+
         Serial.println(msg.text);
         user = msg.sender;
 
@@ -252,6 +308,8 @@ void handleNewMessages(String hari, String tanggal, String waktu) {
         botState = 0;
         setTimeState = 0;
         myBot.sendMessage(chat_id, "Maaf, Paiko tidak tahu perintah ini. 🥺");
+        
+        lcd.clear();
     }
 }
 
@@ -266,16 +324,29 @@ void pushHistory(String hari, String tanggal, String waktu) {
 
     // set lastPushed
     Firebase.setJSON(fbdo, "lastPush", json);
+
+    lastPushTime = waktu;
+    lastPushTime = lastPushTime.substring(0, 5);
 }
 
 // Fungsi untuk membuka dan menutup servo
 void feedFish() {
+    // LCD PRINT
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Sedang memberi");
+    lcd.setCursor(0, 1);
+    lcd.print("pakan ikan!");
+
+    // Gerak servo
     myservo.write(45);
     delay(1000);
     myservo.write(90);
+    delay(500);
+    lcd.clear();
 }
 
-// fungsi untuk validasi waktu
+// fungsi untuk validasi waktu sesuai dngn format atau tidak
 bool validateTime(String waktu) {
     // validasi panjang string
     if (waktu.length() != 5) {

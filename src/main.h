@@ -43,18 +43,20 @@ CTBot myBot;
 // PIN - PIN
 #define servoPin D4
 #define btnPin D0
-LiquidCrystal_I2C lcd(0x27, 16, 4);
 Servo myservo;
+
+// LCD I2C
+LiquidCrystal_I2C lcd(0x27, 16, 4);
 
 // VAR LAIN
 TBMessage msg;
 TBUser user;
-String weekDays[7]={"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"};
+String weekDays[7] = {"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"};
 bool btnState, botState, alarmState = 1;
 int setTimeState;
 int lastTimeBotRan;
 const int bot_delay = 1000;
-String alarm1, alarm2;
+String alarm1, alarm2, lastPushTime;
 int hr1, hr2, min1, min2;
 
 void handleNewMessages(String hari, String tanggal, String waktu);
