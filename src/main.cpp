@@ -54,7 +54,7 @@ void setup() {
     config.database_url = DATABASE_URL;
 
     /* Assign the callback function for the long running token generation task */
-    config.token_status_callback = tokenStatusCallback;   //see addons/TokenHelper.h
+    config.token_status_callback = tokenStatusCallback;   // see addons/TokenHelper.h
 
     Firebase.begin(&config, &auth);
 
@@ -126,7 +126,6 @@ void loop() {
     lcd.print(waktuPrint);
 
     // Print waktu terakhir (BARIS BAWAH)
-    lcd.clear();
     lcd.setCursor(0, 1);
     lcd.print("Terakhir,");
     lcd.setCursor(11, 1);
@@ -146,7 +145,7 @@ void loop() {
     // Handle pemberi pakan ikan otomatis (alarm)
     handleAlarm(hrNow, minNow, hari, tanggal, waktu);
 
-    delay(10);
+    delay(100);
 }
 
 // Fungsi untuk menghandle pesan yg masuk pada telegram
@@ -184,6 +183,8 @@ void handleNewMessages(String hari, String tanggal, String waktu) {
             txt += "/help - menampilkan daftar perintah\n";
             txt += "/status - menampilkan status alat";
             myBot.sendMessage(chat_id, txt);
+            botState = 0;
+            setTimeState = 0;
             return;
         }
 
@@ -222,22 +223,25 @@ void handleNewMessages(String hari, String tanggal, String waktu) {
             txt += "- Pukul " + alarm1 + " WIB";
             txt += "\n- Pukul " + alarm2 + " WIB";
             myBot.sendMessage(chat_id, txt);
+            botState = 0;
+            setTimeState = 0;
             return;
         }
 
         // memberi pakan ikan langsung
         if (msg.text.equalsIgnoreCase("/feed")) {
-            myBot.sendMessage(chat_id, "Tunggu sebentar ya kak! 😊");
             feedFish();
             pushHistory(hari, tanggal, waktu);
-            myBot.sendMessage(chat_id, "Pakan ikan berhasil dikeluarkan!");
+            myBot.sendMessage(chat_id, "Pakan ikan berhasil dikeluarkan! 😊");
+            botState = 0;
+            setTimeState = 0;
             return;
         }
 
         // set waktu untuk memberi pakan ikan secara otomatis
         if (msg.text.equalsIgnoreCase("/settime")) {
             String txt = "Atur waktu penjadwalan otomatis.\n";
-            txt += "Silahkan pilih waktu yang ingin diubah(1/2)\n";
+            txt += "Silahkan pilih waktu yang ingin diubah (1/2)\n";
             txt += "/1 - waktu pertama\n";
             txt += "/2 - waktu kedua";
             myBot.sendMessage(chat_id, txt);
@@ -256,7 +260,7 @@ void handleNewMessages(String hari, String tanggal, String waktu) {
         }
 
         if (botState && (setTimeState == 1)) {
-            String tempTime = msg.text.substring(0, 5);
+            String tempTime = msg.text;
             if (!validateTime(tempTime)) {
                 myBot.sendMessage(chat_id, "Format yang kakak masukkan salah!");
                 return;
@@ -285,7 +289,7 @@ void handleNewMessages(String hari, String tanggal, String waktu) {
         }
 
         if (botState && (setTimeState == 2)) {
-            String tempTime = msg.text.substring(0, 5);
+            String tempTime = msg.text;
             if (!validateTime(tempTime)) {
                 myBot.sendMessage(chat_id, "Format yang kakak masukkan salah! 😊");
                 return;
@@ -308,7 +312,7 @@ void handleNewMessages(String hari, String tanggal, String waktu) {
         botState = 0;
         setTimeState = 0;
         myBot.sendMessage(chat_id, "Maaf, Paiko tidak tahu perintah ini. 🥺");
-        
+
         lcd.clear();
     }
 }
