@@ -344,7 +344,7 @@ void feedFish() {
 
     // Gerak servo
     myservo.write(45);
-    delay(1000);
+    delay(250);
     myservo.write(90);
     delay(500);
     lcd.clear();
